@@ -26,6 +26,30 @@ void *glistPush(void *data, glist* list){
   list->rest = item;
 }
 
+void glistRemove(void *data, glist *list){
+  glist *prev = NULL;
+  while(1){
+    if (list->first == NULL)
+      break;
+
+    if (list->first == data){
+      if (prev == NULL && list->rest == NULL){
+	list->first == NULL;
+      }else if (prev == NULL) {
+	list->first = list->rest->first;
+	list->rest = list->rest->rest;	
+      }
+      else if (list->rest == NULL) {
+	prev->rest = NULL;
+      }
+    }
+    prev = list->first;
+    if (list->rest == NULL)
+      break;
+    list = list->rest;
+  }
+}
+
 #define glistPop(list) (free(list), list=list->rest, list->first)
 /* void *glistPop(glist* list){ */
 /*   void *data = list->first; */
