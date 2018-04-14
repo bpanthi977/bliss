@@ -1,5 +1,7 @@
 
 int isInteger(char *s){
+  if (*s == '-' && *(s+1) != '\0')
+    s++;
   while (*s!='\0'){
     if (!isdigit(*s))
       return 0;
@@ -16,10 +18,21 @@ char *getNonListString (FILE *f){
   int pos = 0;
   thing t;
   string[0] = '\0';
-  
+  int instring = 0;
   /* printf("\nPa\n"); */
   while((c = getc(f)) != EOF){
     /* printf("-%c-\n", c); */
+    if (instring){
+      string[pos++] = c;
+      string[pos] = '\0';
+      if (c == '"')
+	return string;
+      continue;
+    }
+    if (c == '"' && !instring)
+      instring = 1;
+ 
+    
     switch (c){
     case ' ':
     case '\n':
@@ -52,6 +65,7 @@ thing parseNonList(FILE *f){
     //string
     t.type = TSTR;
     int len = strlen(str);
+    /* printf("String %s length = %d ", str, len); */
     char *data = malloc(len -1);
     strncpy(data, str+1, len - 2);
     t.data = data;

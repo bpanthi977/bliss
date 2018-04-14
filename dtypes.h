@@ -8,7 +8,7 @@ struct thing {
 };
 
 
-enum type {TINT, TSTR, TSYM, TFUN, TCFUN, TLIST};
+enum type {TINT, TSTR, TSYM, TFUN, TCFUN, TLIST, TMACRO};
 
 struct glist{
   void *first;
@@ -34,5 +34,6 @@ typedef struct {
 } twothings;
 
 thing NIL = {TSYM, "NIL"};
-
+thing T = {TSYM, "T"};
+thing NEWLINE = {TSTR, "\n"};
 
