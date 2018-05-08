@@ -45,14 +45,11 @@ int glistMap(glist *list, int func(void *)){
 
 int glistLength(glist *list){
   int i = 0;
-  while (1){
-    if (list->first == NULL)
-      return i;
+  while (list != NULL && list->first != NULL){
     i++;
     list = list->rest;
-    if (list == NULL)
-      return i;
   }
+  return i;
 }
 
 void glistRemove(void *data, glist *list){

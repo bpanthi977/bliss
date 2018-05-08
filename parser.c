@@ -110,7 +110,7 @@ thing parsething(FILE *f){
       break;
     case ')':
       if (!inlist){
-	error("Unexpected symbol ')' ");
+	error("Unexpected symbol ')' ", NULL);
 	return t;
       } else {
 	return t;
@@ -156,7 +156,7 @@ thing parsething(FILE *f){
     return NIL;
   
   if (feof(f)){
-    error("File ended while parsing");
+    error("File ended while parsing", NULL);
   } 
   if (ferror(f)){
     perror(f);
@@ -172,7 +172,8 @@ void parseAndEval(char *name){
   thing t;
   if ((fp = fopen(name, "r")) == NULL){
       printf("%s", name);
-      error("Cannot open file");
+      thing t = {TSTR, name};
+      error("Cannot open file: ", &t);
       exit(1);
     }
     while (!feof(fp)){
@@ -180,3 +181,4 @@ void parseAndEval(char *name){
       thing ret = eval(&t, &rootenv);
     }
 }
+

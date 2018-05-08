@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "dtypes.h"
 
-void error(char message[]);
+void error(char message[], thing *);
 void addDebug(thing *t);
 void removeDebug();
 void printDebug();

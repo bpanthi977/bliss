@@ -12,6 +12,6 @@ int main(int argc, char **argv){
     return 0;
   }
 
-  error("No file supplied");
+  error("No file supplied", NULL);
   return 1;
 }

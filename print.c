@@ -50,10 +50,10 @@ void printNonList (thing *t, FILE *f){
     fprintf(f, "%d", (*(int *)t->data));
     break;
   case TSYM:
-    fprintf(f, "%s:SYM", t->data);
+    fprintf(f, "%s", t->data);
     break;
   case TSTR:
-    fprintf(f, "%s", t->data);
+    fprintf(f, "\"%s\"", t->data);
     break;
   case TMACRO:
   case TFUN:

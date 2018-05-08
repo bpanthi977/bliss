@@ -1,7 +1,10 @@
 #include "debug.h"
 
-void error(char message[]){
-  printf("ERROR: %s\n", message);
+void error(char message[], thing *obj){
+  printf("ERROR %s ", message);
+  if (obj != NULL)
+    print(obj, stdout);
+  printf("\n");
   printDebug();
   fflush(stdout);
 }

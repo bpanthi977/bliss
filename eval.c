@@ -44,8 +44,7 @@ thing evalSymbol(thing *t, env *env){
   // Return symbols value
   twothings* tt = findVar(*t, &env->vars);
   if (tt == NULL){
-    error("Symbol value unknown");
-    print(t, stdout);
+    error("Symbol value unknown:", t);
     return NIL;
   }
   return tt->second;
@@ -67,9 +66,9 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
   }
       
   if (strcmp(first->data, "if") == 0){
-    // special cases
+    // special forms
     if (list->rest == NULL || list->rest->rest == NULL){
-      error("Useless if not allowed");
+      error("Useless if not allowed (Condition and if-true not given)", NULL);
       return NIL;
     }
     thing arg1 = eval(list->rest->first, env);
@@ -79,17 +78,17 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
       }
       return eval(list->rest->rest->rest->first, env); // arg3
     }
-    thing arg2 = eval(list->rest->rest->first, env);
-    return arg2;
+    return eval(list->rest->rest->first, env); // arg2
   }
       
   if (strcmp(first->data, "fun") == 0){
     func *function = malloc(sizeof(func));   //function object (internal representation)
     function->args = *((glist *)((thing *)list->rest->first)->data);
+    
     // Check if the parameters are symbols or not
     int result = glistMap(&function->args, isSym);
     if (result == 0){
-      error("Parameter of the function not a symbol");
+      error("Parameter of the function not a symbol", NULL);
       free(function);
       return NIL;
     }
@@ -111,13 +110,10 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
       twothings *var_val = malloc(sizeof(twothings));
       twothings *vv = findVar(*((thing *)varsp->first), &env->vars);
       if (vv == NULL){
-	//	error("Symbol value unknown. Cannot form closure");
-	//	print(&varsp->first, stdout);
-	//	return NIL;
+	// just skip it when unknown symbol occurs
 	varsp = varsp->rest;
 	continue;
-      }
-    
+      }   
 	
       *var_val = *vv;
       glistPush(var_val, &function->closure);
@@ -135,9 +131,10 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
     // Macro get their arguments unevaluated
     // and return code to be evaluated 
 	
-    // TODO: MACRO ARGUMENT EXPANSION SHOULD BE DONE (DON'T DO IT NEXT APPROACH)
+    // TODO: MACRO ARGUMENT EXPANSION SHOULD BE DONE 
     // OTHERWISE ARGUMENT NAME CLASH IN NESTED MACROS IS HIGHLY PROBABLE
-
+    // (now this is not a problem as macros are same as functions but
+    //  without closure and evaluation of arguments)
     func *function = malloc(sizeof(func));   //function object (internal representation)
     function->args = *((glist *)((thing *)list->rest->first)->data);
     function->closure.first = NULL;
@@ -145,20 +142,15 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
     function->body.type = TLIST;
     function->body.data = list->rest->rest;
     thing fthing = {TMACRO, function};
-    /* thing result = eval(&fthing, env); */
-    /* return result; */
-
     return fthing;
   }
 
   if (strcmp(first->data, "eval") == 0){
     if (list->rest == NULL){
-      removeDebug();
       return NIL;
     } else {
       thing tt = eval(list->rest->first, env);
-      thing ttt = eval(&tt, env);
-      return ttt;
+      return eval(&tt, env);
     }
   }
 
@@ -170,19 +162,16 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
       arg1 = *(thing *)list->rest->first;
 
     if (arg1.type != TSYM){
-      error("def name not a symbol");
+      error("def name not a symbol", &arg1);
       return NIL;
     }
 
     twothings *entry = (twothings *)malloc(sizeof(twothings));
     entry->first = arg1;
     entry->second = eval(list->rest->rest->first, env); // value
-
-    func *function = (func *)entry->second.data;
     glistPush(entry, &env->vars);
     return entry->second;
   }
-
       
   if (strcmp(first->data, "set") == 0){
     thing arg1;
@@ -192,13 +181,13 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
       arg1 = *(thing *)list->rest->first;
 
     if (arg1.type != TSYM){
-      error("set name not a symbol");
+      error("set name not a symbol", &arg1);
       return NIL;
     }
 	
     twothings *entry = findVar(arg1, &env->vars);
     if (entry == NULL){
-      error("Variable not defined");
+      error("Variable not defined", &arg1);
       return NIL;
     }
     entry->second = eval(list->rest->rest->first, env); // value
@@ -212,14 +201,12 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
 int pushArguments(thing *funcThing, glist *rargs, glist *gargs, glist *argVars, env *env){
   //                                      ||             ||
   //                               requrired args,  given args
-
   int len = glistLength(rargs);
   int given = glistLength(gargs);
   int restArg = 0;
-  
+ 
   if (funcThing->type ==TFUN && len != given){
-    error("Argument count mismatch for function");
-    print(funcThing, stdout);
+    error("Argument count mismatch for function", funcThing);
     return 0;
   }
   
@@ -231,8 +218,7 @@ int pushArguments(thing *funcThing, glist *rargs, glist *gargs, glist *argVars, 
     thing argVal;
 
     if (rarg == NULL){
-      error("Excess arguments given for macro");
-      print(funcThing, stdout);
+      error("Excess arguments given for macro", funcThing);
       return 0;
     }     
     
@@ -300,24 +286,25 @@ thing evalFuncOrMacro(glist *list, thing *first, env *env){
   // Get the function/macro
   //
   thing funcThing;
-  if (first->type == TSYM){ 
-    funcThing = evalSymbol(first, env);
+  if (first->type == TSYM){
+    twothings* tt = findVar(*first, &env->vars);
+    if (tt == NULL){
+      error("Unknown symbol:", first);
+      return NIL;
+    }
+    funcThing = tt->second;
     if (funcThing.type != TFUN && funcThing.type != TCFUN && funcThing.type != TMACRO){
-      error("Symbol not a function or a macro");
-      print(&funcThing, stdout);
+      error("Symbol not a function or a macro", &funcThing);
       return NIL;
     }
   } else if (first->type == TLIST){
     funcThing = eval(first, env); // after evaluation
     if (funcThing.type != TFUN && funcThing.type != TCFUN && funcThing.type != TMACRO){
-      error("First thing should evaluate to a function or macro but got:" );
-      print(&funcThing, stdout);
-      printf("\n");
+      error("First thing should evaluate to a function or macro but got:" , &funcThing);
       return NIL;
     }
   } else {
-    error("First thing not a function got");
-    print(first, stdout);
+    error("First thing not a function got", first);
     return NIL;
   }
 

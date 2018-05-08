@@ -35,7 +35,7 @@ void *addVar_Val(twothings* var_val, glist *list){
 twothings *findVar(thing symbol, glist *list){
   // Finds variable in var list 
   if (symbol.type != TSYM){
-    error("Internal error! findVar expects first argument to be symbol");
+    error("Internal error! findVar expects first argument to be symbol: ", &symbol);
     exit(1);
   }
   while(1){
@@ -64,6 +64,8 @@ void initenv(){
   addCFunc("-", sub, &rootenv.vars);
   addCFunc("=", areEql, &rootenv.vars);
   addCFunc(">", isGt, &rootenv.vars);
+  addCFunc("eval-each", eval_each, &rootenv.vars);
+  addCFunc("list", create_list, &rootenv.vars);
   addCFunc("first", first, &rootenv.vars);
   addCFunc("rest", rest, &rootenv.vars);
   addCFunc("print", printF, &rootenv.vars);
