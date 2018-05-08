@@ -9,7 +9,7 @@
 			 eval-each-return-value)))
 
 (def let (macro (var val :rest letbody)
-		((fun ((eval (quote var)))
+		((fun ((eval (quote var)))	
 		      (eval-each letbody))
 		 (eval val))))
 

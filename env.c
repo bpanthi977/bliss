@@ -9,12 +9,27 @@ void addCFunc(char* name, thing (*func)(glist *, env), glist *list){
   glistPush(ff, list);
 }
 
-void addVar(char* name, thing t, glist *list){
+twothings *addVar(char* name, thing t, glist *list){
   twothings *ff = malloc(sizeof(twothings));
   ff->first.type = TSYM;
   ff->first.data = name;
   ff->second = t;
   glistPush(ff, list);
+  return ff;
+}
+
+void removeVar(char *name, glist *llist){
+  glist *list = llist;
+  while(list != NULL && list->first != NULL){
+    if (strcmp(name, ((twothings *)list->first)->first.data) == 0){
+      glistRemove(list->first, llist);
+      break;
+    }      
+  }
+}
+
+void *addVar_Val(twothings* var_val, glist *list){
+  glistPush(var_val, list);
 }
 
 twothings *findVar(thing symbol, glist *list){

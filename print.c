@@ -32,6 +32,18 @@ void printList(thing *t, FILE *f){
 
 }
 
+void printClosure(glist *list, FILE *f){
+  while(list != NULL && list->first != NULL){
+    fprintf(f, "\n");
+    print(&((twothings *)list->first)->first, f);
+    fprintf(f, " = ");
+    print(&((twothings *)list->first)->second, f);
+
+
+    list =  list->rest;
+  }
+}
+
 void printNonList (thing *t, FILE *f){
   switch (t->type){
   case TINT:
@@ -51,7 +63,9 @@ void printNonList (thing *t, FILE *f){
     thing temp = {TLIST, &((func *)t->data)->args};
     print(&temp, f);
     fflush(f);
-    printf("\n\t Body:");
+    fprintf(f, "\n\tClosedVars:");
+    printClosure(&((func *)t->data)->closure, f);
+    fprintf(f, "\n\tBody:");
     print(&((func *)t->data)->body, f);
     break;
   default:

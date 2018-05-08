@@ -24,6 +24,7 @@ typedef struct glist glist;
 typedef struct{
   glist args;
   thing body;
+  glist closure;
 } func ;
   
 struct env{

@@ -1,6 +1,45 @@
 #include "eval.h"
 int specialForm;
 
+glist *scan4vars_vars;
+int scanForVars1(thing *t){
+  if (t->type == TLIST){
+    scanForVars0(t->data);
+  } else if (t->type == TSYM){
+    glistPush(t, scan4vars_vars);
+  }
+  return 1;
+}
+
+void dprintList(glist *list){
+  thing t = {TLIST, list};
+  print(&t, stdout);
+}
+
+void scanForVars0(glist *list){
+
+  if (list->first == NULL)
+    return 1;
+  
+  thing *f = (thing *) list->first;
+  if (f->type == TSYM && strcmp(f->data, "quote") == 0)
+    return 1;
+
+  if (f->type !=TLIST && list->rest == NULL)
+    return;
+
+  if (f->type == TLIST)
+    glistMap(list, scanForVars1);
+  else
+    glistMap(list->rest, scanForVars1);
+  return 1;
+}
+
+void scanForVars(glist *list, glist *vars){
+  scan4vars_vars = vars;
+  scanForVars0(list);
+}
+
 thing evalSymbol(thing *t, env *env){
   // Return symbols value
   twothings* tt = findVar(*t, &env->vars);
@@ -10,6 +49,13 @@ thing evalSymbol(thing *t, env *env){
     return NIL;
   }
   return tt->second;
+}
+
+int isSym(thing *thing){
+  if (thing->type != TSYM)
+    return 0;
+    
+  return 1;
 }
 
 thing evalSpecialForm(glist *list, thing *first, env *env){
@@ -38,10 +84,47 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
   }
       
   if (strcmp(first->data, "fun") == 0){
-    // TODO: FUNCTION SHOULD BE ABLE TO FORM CLOSURES
-    /* thing arg1 = eval(t->list.rest->first, env); //function name */
     func *function = malloc(sizeof(func));   //function object (internal representation)
     function->args = *((glist *)((thing *)list->rest->first)->data);
+    // Check if the parameters are symbols or not
+    int result = glistMap(&function->args, isSym);
+    if (result == 0){
+      error("Parameter of the function not a symbol");
+      free(function);
+      return NIL;
+    }
+
+    // Create a closure
+    glist vars = {NULL, NULL};    
+    scanForVars(list->rest->rest, &vars);
+
+    function->closure.first = NULL;
+    function->closure.rest = NULL;
+    glist *varsp = &vars;
+    while(varsp != NULL && varsp->first != NULL){
+      // var of parameter is not in closure
+      if (findVar(*((thing *)varsp->first), &function->args) != NULL){
+	varsp = varsp->rest;
+	continue;
+      }
+
+      twothings *var_val = malloc(sizeof(twothings));
+      twothings *vv = findVar(*((thing *)varsp->first), &env->vars);
+      if (vv == NULL){
+	//	error("Symbol value unknown. Cannot form closure");
+	//	print(&varsp->first, stdout);
+	//	return NIL;
+	varsp = varsp->rest;
+	continue;
+      }
+    
+	
+      *var_val = *vv;
+      glistPush(var_val, &function->closure);
+
+      varsp = varsp->rest;
+    }
+    // Collect and return the function object
     function->body.type = TLIST;
     function->body.data = list->rest->rest;
     thing fthing = {TFUN, function};
@@ -57,6 +140,8 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
 
     func *function = malloc(sizeof(func));   //function object (internal representation)
     function->args = *((glist *)((thing *)list->rest->first)->data);
+    function->closure.first = NULL;
+    function->closure.rest = NULL;
     function->body.type = TLIST;
     function->body.data = list->rest->rest;
     thing fthing = {TMACRO, function};
@@ -124,144 +209,156 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
   specialForm = 0;
 }
 
+int pushArguments(thing *funcThing, glist *rargs, glist *gargs, glist *argVars, env *env){
+  //                                      ||             ||
+  //                               requrired args,  given args
+
+  int len = glistLength(rargs);
+  int given = glistLength(gargs);
+  int restArg = 0;
+  
+  if (funcThing->type ==TFUN && len != given){
+    error("Argument count mismatch for function");
+    print(funcThing, stdout);
+    return 0;
+  }
+  
+  while(given > 0){
+    given--;
+
+    thing *rarg = (thing *)rargs->first;
+    thing *garg = (thing *)gargs->first;
+    thing argVal;
+
+    if (rarg == NULL){
+      error("Excess arguments given for macro");
+      print(funcThing, stdout);
+      return 0;
+    }     
+    
+    if (funcThing->type == TFUN){
+      // arguments are evaled for a function
+      argVal= eval(garg, env); 
+    }
+    else if (funcThing->type == TMACRO) {
+      // But they are not evaled for a macro
+      argVal = *garg; 
+      if (strcmp(rarg->data, ":rest") == 0){
+	restArg = 1;
+	rargs = rargs->rest;
+	continue;
+      }
+      if (restArg){
+	argVal.type = TLIST;
+	argVal.data = gargs;
+	addVar(rarg->data, argVal, &env->vars);
+	glistPush(rarg, argVars);
+	break;
+      }
+    }
+
+    // Push variables
+    addVar(rarg->data, argVal, &env->vars);
+    glistPush(rarg, argVars);
+
+    rargs = rargs->rest;
+    gargs = gargs->rest;
+  }
+  return 1;
+}
+
+void removeArguments(glist *argVars, env *env){
+  while(1){      
+    if (argVars->first == NULL)
+      break;
+    
+    /* glistRemove(argVars->first, &env->vars); */
+    removeVar(((thing *)argVars->first)->data, &env->vars);
+    if (argVars->rest == NULL)
+      break;
+    argVars = argVars->rest;      
+  }
+}
+
+thing evalEach(glist *forms, env *env){
+  thing rVal = NIL;
+  while (1){
+    if (forms == NULL || forms->first == NULL )
+      return rVal;
+    rVal = eval((thing *)forms->first, env);
+    if (forms->rest == NULL)
+      return rVal;
+    forms = forms->rest;
+  }
+}
 
 thing evalFuncOrMacro(glist *list, thing *first, env *env){
   // Default case, first item is a function
   // could have directly evaluated but for efficiency
-  
+
+  //
+  // Get the function/macro
+  //
   thing funcThing;
-  if (first->type == TSYM){
-    twothings *tt = findVar(*first, &env->vars);
-    if (tt == NULL){
-      printf("%s is ", first->data);
-      error("Unknown symbol ");
-      return NIL;
-    }
-    if (tt->second.type != TFUN && tt->second.type != TCFUN && tt->second.type != TMACRO){
+  if (first->type == TSYM){ 
+    funcThing = evalSymbol(first, env);
+    if (funcThing.type != TFUN && funcThing.type != TCFUN && funcThing.type != TMACRO){
       error("Symbol not a function or a macro");
-      print(&tt->second, stdout);
+      print(&funcThing, stdout);
       return NIL;
     }
-    funcThing = tt->second;
-    /* f = (func *)tt->second.data; */
   } else if (first->type == TLIST){
-    thing aeval = eval(first, env); // after evaluation
-    if (aeval.type != TFUN && aeval.type != TCFUN && aeval.type != TMACRO){
+    funcThing = eval(first, env); // after evaluation
+    if (funcThing.type != TFUN && funcThing.type != TCFUN && funcThing.type != TMACRO){
       error("First thing should evaluate to a function or macro but got:" );
-      print(&aeval, stdout);
+      print(&funcThing, stdout);
       printf("\n");
       return NIL;
     }
-    /* f = (func *)aeval.data; */
-    funcThing = aeval;
   } else {
     error("First thing not a function got");
     print(first, stdout);
     return NIL;
   }
 
+  //
+  // If C function, pass the arguments and evaluate directly
+  //
   if (funcThing.type == TCFUN){
-    //thing (*function)(glist* p,env* q);
     thing (*function)(glist*,struct env*);
     function = funcThing.data;
     thing rVal = function(list->rest, env);
     return rVal;
   }
 
-  // IF MACRO or a FUNCTION
-  func *f = (func *) funcThing.data;
-  int restArg = 0;
+  //
+  // IF Macro or normal Function
   // Push arguments to environment
-  glist *rargs = &f->args; // required args
-  glist *gargs = list->rest; // given args
-  glist argVars = {NULL, NULL}; 
-  while(1){
-    if (rargs == NULL || rargs->first == NULL)
-      break;
-    if (gargs == NULL || gargs->first == NULL){
-      error("Arguments insufficient for");
-      print(&funcThing, stdout);
-      return NIL;
-    }
-    thing *rarg = (thing *)rargs->first;
-    thing *garg = (thing *)gargs->first;
-
-    twothings *argVar = malloc(sizeof(twothings));
-
-    argVar->first = *rarg;
-
-    if (argVar->first.type == TLIST){
-      argVar->first = eval(&argVar->first, env);
-    }
-    if (argVar->first.type != TSYM){
-      /* TODO: this checking should be done when func is evaled */ // no no 
-      error("Argument Variable not a symbol");
-      return NIL;
-    }
-
-    if (funcThing.type == TFUN){
-      argVar->second = eval(garg, env); // arguments are evaled for a function
-    }
-    else if (funcThing.type == TMACRO) {
-      if (restArg){
-	thing restArgs = {TLIST, gargs};
-	argVar->second = restArgs;
-	glistPush(argVar, &env->vars);
-	glistPush(argVar, &argVars);
-	break;
-      }
-      argVar->second = *garg; // while they are not evaled for a macro
-	
-      if (strcmp(argVar->first.data, ":rest") == 0){
-	restArg = 1;
-	rargs = rargs->rest;
-	continue;
-      }
-    }
-    glistPush(argVar, &env->vars);
-    glistPush(argVar, &argVars);
-
-    if (rargs->rest == NULL)
-      break;
-    if (gargs->rest == NULL){
-      error("Arguments insufficient for ");
-      print(&funcThing, stdout);
-      return NIL;
-    }
-    rargs = rargs->rest;
-    gargs = gargs->rest;
+  func *f = (func *) funcThing.data;  
+  glist argVars = {NULL, NULL};
+  if (pushArguments(&funcThing, &f->args, list->rest, &argVars, env) == 0)
+    return NIL;
+  //
+  // Add the closure to the environment (Only for functions. Macros have empty closures)
+  glist *closr = &f->closure;
+  while(closr != NULL && closr->first != NULL){
+    addVar_Val(closr->first, &env->vars);
+    closr = closr->rest;
   }
-    
-  // Evaluate function
-  thing rVal;
+  //
+  // Evaluate function body
   glist *forms = (glist *)f->body.data;
-  while (1){
-    if (forms == NULL || forms->first == NULL )
-      break;
-    rVal = eval((thing *)forms->first, env);
-    if (forms->rest == NULL)
-      break;
-    forms = forms->rest;
+  thing rVal = evalEach(forms, env);
+
+  //
+  // Remove Closure and Argument vars
+  closr = &f->closure;
+  while(closr != NULL && closr->first != NULL){
+    glistRemove(closr->first, &env->vars);
+    closr = closr->rest;
   }
- 
-  // Remove arguments
-  rargs = &f->args;
-  while(1){
-      
-    if (argVars.first == NULL)
-      break;
-      
-    glistRemove(argVars.first, &env->vars);
-    free(argVars.first);
-    if (argVars.rest == NULL)
-      break;
-    argVars = *argVars.rest;      
-  }
-  /* TODO: this may be after the args are removed from env */ // done
-  if (funcThing.type == TMACRO){
-    // result of macro is evaluated
-    rVal = eval(&rVal, env);
-  }
+  removeArguments(&argVars, env);
+  
   return rVal;
 }
 

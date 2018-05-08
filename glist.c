@@ -29,6 +29,32 @@ void *glistPush(void *data, glist* list){
   list->rest = item;
 }
 
+int glistMap(glist *list, int func(void *)){
+  while (1){
+    if (list->first == NULL)
+      return 1;
+
+    if (0 == func(list->first))
+      return 0;
+    
+    list = list->rest;
+    if (list == NULL)
+      return 1;
+  }
+}
+
+int glistLength(glist *list){
+  int i = 0;
+  while (1){
+    if (list->first == NULL)
+      return i;
+    i++;
+    list = list->rest;
+    if (list == NULL)
+      return i;
+  }
+}
+
 void glistRemove(void *data, glist *list){
   glist *prev = NULL;
   while(1){
