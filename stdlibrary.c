@@ -1,6 +1,4 @@
-
-thing eval(thing *t, env *env);
-void openFileAndEval(char *name);
+#include "stdlibrary.h"
 
 twothings *binaryIntFunc(glist *args, env *e){
   static twothings ret;
@@ -30,6 +28,7 @@ twothings *binaryIntFunc(glist *args, env *e){
   ret.second = b;
   return &ret;
 }
+
 thing add(glist *args, env *e){
   twothings *tt = binaryIntFunc(args,e);
   if (tt == NULL)
@@ -145,7 +144,7 @@ thing printF(glist *args, env *e){
   }
   thing tt = eval(args->first, e);
   print(&tt, stdout);
-  return *(thing *)args->first;
+  return tt;
 }
 
 thing include(glist *args, env *e){
@@ -158,6 +157,6 @@ thing include(glist *args, env *e){
     error("Filename not a string");
     return NIL;
   }
-  openFileAndEval(tt.data);
+  parseAndEval(tt.data);
   return NIL;
 }

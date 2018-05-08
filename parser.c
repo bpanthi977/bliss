@@ -1,3 +1,4 @@
+#include "parser.h"
 
 int isInteger(char *s){
   if (*s == '-' && *(s+1) != '\0')
@@ -164,3 +165,18 @@ thing parsething(FILE *f){
 }
 
 
+
+
+void parseAndEval(char *name){
+  FILE *fp;
+  thing t;
+  if ((fp = fopen(name, "r")) == NULL){
+      printf("%s", name);
+      error("Cannot open file");
+      exit(1);
+    }
+    while (!feof(fp)){
+      t = parsething(fp);
+      thing ret = eval(&t, &rootenv);
+    }
+}

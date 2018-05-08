@@ -1,3 +1,6 @@
+// Generic list utilites
+#include "dtypes.h"
+#include <stdio.h>
 
 void *glistFind(void *data, glist* list){
   while(1){
@@ -49,9 +52,3 @@ void glistRemove(void *data, glist *list){
     list = list->rest;
   }
 }
-
-#define glistPop(list) (free(list), list=list->rest, list->first)
-/* void *glistPop(glist* list){ */
-/*   void *data = list->first; */
-/*   list-> */
-/* } */

@@ -1,3 +1,7 @@
+#ifndef dtypes_h
+#define dtypes_h
+
+// Basic datatypes
 typedef struct thing thing;
 typedef struct list list;
 typedef struct atom atom;
@@ -33,7 +37,7 @@ typedef struct {
   thing second;
 } twothings;
 
-thing NIL = {TSYM, "NIL"};
-thing T = {TSYM, "T"};
-thing NEWLINE = {TSTR, "\n"};
-
+thing NIL;
+thing T;
+thing NEWLINE;
+#endif
