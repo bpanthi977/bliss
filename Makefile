@@ -4,7 +4,7 @@ CC_FLAGS = -w
 LINKER_FLAGS =
 
 # File names
-EXEC = bin/main
+EXEC = bin/bliss
 SOURCES = main.c env.c eval.c glist.c parser.c stdlibrary.c print.c dtypes.c debug.c
 OBJECTS = main.o env.o eval.o glist.o parser.o stdlibrary.o print.o dtypes.o debug.o 
 HEADERS = env.h eval.h glist.h parser.h stdlibrary.h print.h dtypes.h debug.h
