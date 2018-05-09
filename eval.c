@@ -57,7 +57,7 @@ int isSym(thing *thing){
   return 1;
 }
 
-thing evalSpecialForm(glist *list, thing *first, env *env){
+thing evalSpecialForm(glist *list, thing *first, env *env, int *notSpecialForm){
   if (strcmp(first->data, "quote") == 0){
     if (list->rest == NULL){
       return NIL;
@@ -195,7 +195,7 @@ thing evalSpecialForm(glist *list, thing *first, env *env){
   }
 
   // not a special form
-  specialForm = 0;
+  *notSpecialForm = 1;
 }
 
 int pushArguments(thing *funcThing, glist *rargs, glist *gargs, glist *argVars, env *env){
@@ -211,7 +211,7 @@ int pushArguments(thing *funcThing, glist *rargs, glist *gargs, glist *argVars, 
   }
   
   while(given > 0){
-    given--;
+
 
     thing *rarg = (thing *)rargs->first;
     thing *garg = (thing *)gargs->first;
@@ -249,33 +249,25 @@ int pushArguments(thing *funcThing, glist *rargs, glist *gargs, glist *argVars, 
 
     rargs = rargs->rest;
     gargs = gargs->rest;
+    given--;
   }
   return 1;
 }
 
 void removeArguments(glist *argVars, env *env){
-  while(1){      
-    if (argVars->first == NULL)
-      break;
-    
-    /* glistRemove(argVars->first, &env->vars); */
+  while(argVars != NULL && argVars->first != NULL){        
     removeVar(((thing *)argVars->first)->data, &env->vars);
-    if (argVars->rest == NULL)
-      break;
     argVars = argVars->rest;      
   }
 }
 
-thing evalEach(glist *forms, env *env){
-  thing rVal = NIL;
-  while (1){
-    if (forms == NULL || forms->first == NULL )
-      return rVal;
-    rVal = eval((thing *)forms->first, env);
-    if (forms->rest == NULL)
-      return rVal;
-    forms = forms->rest;
+thing evalEach(glist *args, env *env){
+  thing t = NIL;
+  while(args != NULL && args->first != NULL){
+    t = eval(args->first, env);
+    args = args->rest;
   }
+  return t;
 }
 
 thing evalFuncOrMacro(glist *list, thing *first, env *env){
@@ -351,7 +343,11 @@ thing evalFuncOrMacro(glist *list, thing *first, env *env){
 
 thing eval(thing *t, env *env){
   addDebug(t);
+  /* printf("\n\n"); */
+  /* print(t, stdout); */
+  /* listVars(&env->vars); */
   thing result;
+
   if (t->type == TSYM){
     result = evalSymbol(t, env);
   }
@@ -364,14 +360,17 @@ thing eval(thing *t, env *env){
       return *t;
     }
     thing *first = list->first;
-
     if (first->type == TSYM){
-      specialForm = 1;
-      result = evalSpecialForm(list, first, env);
-    }
-    if (specialForm == 0){
+      int notSpecialForm = 0;
+      result = evalSpecialForm(list, first, env, &notSpecialForm);
+      if (notSpecialForm){
       result = evalFuncOrMacro(list, first, env);
+      } 
+    } else {
+      error("First thing not a function got", first);
+      return NIL;
     }
+    
   }
   else {
     removeDebug();

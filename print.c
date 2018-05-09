@@ -8,6 +8,7 @@ void print(thing *t, FILE *f){
   } else{
     printNonList(t,f);
   }
+  fflush(f);
 }
 
 void printList(thing *t, FILE *f){

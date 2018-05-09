@@ -24,7 +24,9 @@ void removeVar(char *name, glist *llist){
     if (strcmp(name, ((twothings *)list->first)->first.data) == 0){
       glistRemove(list->first, llist);
       break;
-    }      
+    }
+
+    list = list->rest;
   }
 }
 
@@ -32,6 +34,13 @@ void *addVar_Val(twothings* var_val, glist *list){
   glistPush(var_val, list);
 }
 
+void *addVar_Val2(thing var, thing val, glist *list){
+  twothings *ff = malloc(sizeof(twothings));
+  ff->first = var;
+  ff->second = val;
+  glistPush(ff, list);
+  return ff;
+}
 twothings *findVar(thing symbol, glist *list){
   // Finds variable in var list 
   if (symbol.type != TSYM){
@@ -62,9 +71,12 @@ void initenv(){
 
   addCFunc("+", add, &rootenv.vars);
   addCFunc("-", sub, &rootenv.vars);
+  addCFunc("*", multiply, &rootenv.vars);
+  addCFunc("/", divide, &rootenv.vars);
   addCFunc("=", areEql, &rootenv.vars);
   addCFunc(">", isGt, &rootenv.vars);
   addCFunc("eval-each", eval_each, &rootenv.vars);
+  addCFunc("let", let, &rootenv.vars);
   addCFunc("list", create_list, &rootenv.vars);
   addCFunc("first", first, &rootenv.vars);
   addCFunc("rest", rest, &rootenv.vars);

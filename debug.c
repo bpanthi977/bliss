@@ -16,6 +16,24 @@ void addDebug(thing *t){
   debugThings[debugThingsCount++] = *t;
 }
 
+void listVars(glist *varVals){
+  printf("\nVariable Stack:\n");
+  twothings *t;
+  int count = 7;
+  while (varVals!= NULL && varVals->first !=NULL){
+    if (count-- == 0){
+      break;
+    }
+    t = varVals->first;
+    print(&t->first, stdout);
+    printf(" = ");
+    print(&t->second, stdout);
+    printf("\n");
+    
+    varVals = varVals->rest;
+  }
+}
+
 void removeDebug(){
   debugThingsCount--;
 }

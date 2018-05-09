@@ -102,6 +102,16 @@ thing parsething(FILE *f){
   while ((c = getc(f)) != EOF){
     normalend = 0;
     switch (c){
+    case ';':
+      while((c = getc(f)) != EOF){
+	if (c == '\n'){
+	  normalend = 1;
+	  break;
+	}
+      }
+      if (!normalend)
+	break;
+      normalend = 0;
     case ' ':
     case '\n':
     case '\t':

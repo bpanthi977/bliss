@@ -52,6 +52,37 @@ thing sub(glist *args, env *e){
   return ans;
 }
 
+
+thing multiply(glist *args, env *e){
+  twothings *tt = binaryIntFunc(args,e);
+  if (tt == NULL)
+    return NIL;
+  
+  int *sum = malloc(sizeof(int));
+  *sum = *(int *)tt->first.data * *(int *)tt->second.data;
+  thing ans = {TINT, sum};
+  return ans;
+}
+
+
+thing divide(glist *args, env *e){
+  twothings *tt = binaryIntFunc(args,e);
+  if (tt == NULL)
+    return NIL;
+  
+  int *sum = malloc(sizeof(int));
+  int *b = (int *)tt->second.data;
+  if (*b == 0){
+    error("Division by zero not possible", NULL);
+    *sum = 0;
+  } else {
+    *sum = *(int *)tt->first.data / *b;
+  }
+  thing ans = {TINT, sum};
+  return ans;
+}
+
+
 thing areEql(glist *args, env *e){
   twothings *tt = binaryIntFunc(args,e);
   if (tt == NULL)
@@ -76,13 +107,19 @@ thing isGt(glist *args, env *e){
     return NIL;
 }
 
-thing eval_each(glist *args, env *e){
-  thing t = NIL;
-  while(args != NULL && args->first != NULL){
-    t = eval(args->first, e);
-    args = args->rest;
+
+
+thing eval_each(glist *args, env *env){
+  if (args == NULL || args->first == NULL){
+    error("No arguments given to eval-each", NULL);
+    return NIL;
   }
-  return t;
+  thing first = eval(args->first, env);
+  if (first.type != TLIST){
+    error("First argument doesn't evaluate to list", &first);
+    return NIL;
+  }
+  return evalEach(first.data, env);  
 }
 
 thing create_list(glist *args, env *e){
@@ -168,6 +205,56 @@ thing push(glist *args, env *e){
   return t;
 }
 
+thing let(glist *args, env *e){
+  if (args->first == NULL){
+    error ("No arguments given to let", NULL);
+    return NIL;
+  }
+ 
+  thing *first = (thing *)args->first;
+
+  if (first->type != TLIST){
+    error ("Variable list not a list", NULL);
+    return NIL;
+  }
+  glist *vlist = (glist *)first->data;
+  glist var_vals = {NULL, NULL};
+  // Push variables to stack
+  while (vlist != NULL && vlist->first != NULL){
+    thing *this = (thing *)vlist->first;
+    if (this->type == TLIST){
+      glist *thisl = (glist *)this->data;
+      thing *first = thisl->first;
+      if (first->type != TSYM){
+	error("Variable name not a symbol", first);
+	return NIL;
+      }
+      if (thisl->rest == NULL || thisl->rest->first == NULL){
+	error("Value not provided for variable", first);
+	return NIL;
+      }
+      thing val =  eval(thisl->rest->first, e);
+      glistPush(addVar_Val2(*first, val, e), &var_vals);
+      
+    } else  if (this->type != TSYM){
+      error("Variable name not a symbol", this);
+      return NIL;
+      
+    } else {
+      glistPush(addVar_Val2(*this, NIL, e), &var_vals);
+    }
+    
+    vlist = vlist->rest;
+  }
+  // Evaluate body
+  thing result = evalEach(args->rest, e);
+  
+  // Remove variables from stack
+  removeArguments(&var_vals, e);
+
+  return result;
+}
+
 thing printF(glist *args, env *e){
   if (args->first == NULL){
     error("No arguments given to print", NULL);
@@ -178,6 +265,11 @@ thing printF(glist *args, env *e){
     thing *second = (thing *) args->rest->first;
     if (second->type == TSYM && strcmp(second->data, "NIL") == 0 && tt.type == TSTR){
       printf("%s", tt.data);
+      return tt;
+    }
+    if (second->type == TSYM && strcmp(second->data, "T") == 0){
+      print(&tt, stdout);
+      printf("\n");
       return tt;
     }
   }
