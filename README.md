@@ -6,7 +6,7 @@ It
 * has lisp-like macros (but simpler)
 * is homoiconic
 * has closures 
-* sigle namespace for variable and functions 
+* single namespace for variable and functions 
 
 It doesn't
 
