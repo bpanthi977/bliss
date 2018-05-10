@@ -69,6 +69,7 @@ thing parseNonList(FILE *f){
     /* printf("String %s length = %d ", str, len); */
     char *data = malloc(len -1);
     strncpy(data, str+1, len - 2);
+    data[len - 2] = '\0';
     t.data = data;
   } else if (isInteger(str)){
     // integer
